@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// =====================================================================================\n//  CONFIG - everything you need to change lives here.\n//  Secrets do NOT live here; they are n8n credentials (Telegram, Supabase, Apify,\n//  RapidAPI, Bland). This node holds the non-secret settings only.\n// =====================================================================================\nreturn [{ json: { config: {\n\n  // --- the mountain -----------------------------------------------------------------\n  resortUrl:      'https://www.snow-forecast.com/resorts/Panorama/6day/mid',\n  resortName:     'Panorama Mountain Resort',\n  liftLat:        50.4608,       // Panorama base village, used for the boot-walk ranking\n  liftLng:        -116.2370,\n\n  // --- the trigger ------------------------------------------------------------------\n  snowCm:         20,            // overnight dump that counts\n  coldC:          -10,           // must stay at or below this...\n  coldRunDays:    3,             // ...for this many days straight\n  tripNights:     5,\n\n  // --- travel -----------------------------------------------------------------------\n  homeAirport:    'YYJ',         // Victoria, BC\n  arriveAirport:  'YLW',         // Kelowna, BC\n  adults:         4,\n\n  // --- the arrival sequence ---------------------------------------------------------\n  transferLeadMins: 30,          // book the shuttle this long before landing\n  beerLeadMins:     10,          // order supplies this many minutes from the lodge\n\n  // Saved contacts. Swap these for the operators you actually use.\n  taxiContact:  { name: 'Panorama Shuttle',     phone: 'YOUR_PHONE_NUMBER' },\n  beerContact:  { name: 'Panorama Lodge',       phone: 'YOUR_PHONE_NUMBER' },\n\n  // --- who gets told ----------------------------------------------------------------\n  telegramChatId: 'YOUR_TELEGRAM_CHAT_ID',\n} }}];\n"
+        "jsCode": "\n// =====================================================================================\n//  CONFIG - everything you need to change lives here.\n//  Secrets do NOT live here; they are n8n credentials (Telegram, Supabase, Apify,\n//  RapidAPI, Bland). This node holds the non-secret settings only.\n// =====================================================================================\nreturn [{ json: { config: {\n\n  // --- the mountain -----------------------------------------------------------------\n  resortUrl:      'https://www.snow-forecast.com/resorts/Panorama/6day/mid',\n  resortName:     'Panorama Mountain Resort',\n  liftLat:        50.4608,       // Panorama base village, used for the boot-walk ranking\n  liftLng:        -116.2370,\n\n  // --- the trigger ------------------------------------------------------------------\n  snowCm:         20,            // overnight dump that counts\n  coldC:          -10,           // must stay at or below this...\n  coldRunDays:    3,             // ...for this many days straight\n  tripNights:     5,\n\n  // --- travel -----------------------------------------------------------------------\n  homeAirport:    'YWG',         // Winnipeg\n  arriveAirports: ['YYC', 'YLW'], // Calgary, BC and Kelowna, BC (compare both)\n  adults:         4,\n\n  // --- the arrival sequence ---------------------------------------------------------\n  transferLeadMins: 30,          // book the shuttle this long before landing\n  beerLeadMins:     10,          // order supplies this many minutes from the lodge\n\n  // Saved contacts. Swap these for the operators you actually use.\n  taxiContact:  { name: 'Panorama Shuttle',     phone: 'YOUR_PHONE_NUMBER' },\n  beerContact:  { name: 'Panorama Lodge',       phone: 'YOUR_PHONE_NUMBER' },\n\n  // --- who gets told ----------------------------------------------------------------\n  telegramChatId: 'YOUR_TELEGRAM_CHAT_ID',\n} }}];\n"
       },
       "name": "⚙️ CONFIG",
       "type": "n8n-nodes-base.code",
@@ -143,17 +143,38 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n \"departure_id\":\"{{ $('⚙️ CONFIG').first().json.config.homeAirport }}\",\"arrival_id\":\"{{ $('⚙️ CONFIG').first().json.config.arriveAirport }}\",\n \"outbound_date\":\"{{ $json.departDate }}\",\n \"return_date\":\"{{ $json.returnDate }}\",\n \"adults\":1,\"currency\":\"CAD\",\"fetch_booking_options\":false,\"max_pages\":1,\"gl\":\"ca\",\"hl\":\"en\"\n}",
+        "jsonBody": "={\n \"departure_id\":\"{{ $('⚙️ CONFIG').first().json.config.homeAirport }}\",\"arrival_id\":\"YYC\",\n \"outbound_date\":\"{{ $json.departDate }}\",\n \"return_date\":\"{{ $json.returnDate }}\",\n \"adults\":1,\"currency\":\"CAD\",\"fetch_booking_options\":false,\"max_pages\":1,\"gl\":\"ca\",\"hl\":\"en\"\n}",
         "options": {
           "timeout": 200000
         }
       },
-      "name": "Apify: flights YYJ to YLW",
+      "name": "Apify: flights YWG to YYC",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         1280,
-        460
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/johnvc~Google-Flights-Data-Scraper-Flight-and-Price-Search/run-sync-get-dataset-items?maxTotalChargeUsd=0.5&timeout=180",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n \"departure_id\":\"{{ $('⚙️ CONFIG').first().json.config.homeAirport }}\",\"arrival_id\":\"YLW\",\n \"outbound_date\":\"{{ $json.departDate }}\",\n \"return_date\":\"{{ $json.returnDate }}\",\n \"adults\":1,\"currency\":\"CAD\",\"fetch_booking_options\":false,\"max_pages\":1,\"gl\":\"ca\",\"hl\":\"en\"\n}",
+        "options": {
+          "timeout": 200000
+        }
+      },
+      "name": "Apify: flights YWG to YLW",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        580
       ]
     },
     {
@@ -179,9 +200,9 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Rank every rental on how far you have to walk in snowboard boots, and let a hot tub\n// win outright.\nconst LIFT = { lat: 50.4608, lng: -116.2370 };   // Panorama base village\n\nfunction flat(items) {\n  let a = items.map(function (i) { return i.json; });\n  if (a.length === 1 && Array.isArray(a[0])) a = a[0];\n  if (a.length === 1 && a[0] && Array.isArray(a[0].data)) a = a[0].data;\n  return a;\n}\nfunction metres(lat, lng) {\n  if (typeof lat !== 'number' || typeof lng !== 'number') return null;\n  const R = 6371000;\n  const toRad = function (x) { return x * Math.PI / 180; };\n  const dLat = toRad(lat - LIFT.lat);\n  const dLng = toRad(lng - LIFT.lng);\n  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +\n            Math.cos(toRad(LIFT.lat)) * Math.cos(toRad(lat)) *\n            Math.sin(dLng / 2) * Math.sin(dLng / 2);\n  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));\n}\nfunction nightly(it) {\n  // Airbnb writes this as either \"C$420 x 5 nights\" or \"5 nights x C$420\", so anchor on\n  // the CURRENCY symbol, not on the \"x\". The inherited SWELL EVENT regex took the number\n  // after the \"x\" and therefore returned the NIGHT COUNT (5) as the nightly price.\n  const desc = (((it.price || {}).breakDown || {}).basePrice || {}).description || '';\n  const money = [...desc.matchAll(/[$£€¥]\\s*([\\d,]+(?:\\.\\d+)?)/g)]\n    .map(function (m) { return parseFloat(m[1].replace(/,/g, '')); })\n    .filter(function (n) { return !isNaN(n); });\n  if (money.length) return Math.round(Math.max.apply(null, money));\n  // Fallback: price.price is the TRIP TOTAL (qualifier \"total\"), not a nightly rate.\n  // Divide it down rather than reporting a 5-night total as a per-night price.\n  const price = (it.price || {});\n  const alt = price.price || (it.pricing || {}).rate || null;\n  const n = parseFloat(String(alt).replace(/[^0-9.]/g, ''));\n  if (isNaN(n)) return null;\n  const nightsMatch = String(desc).match(/(\\d+)\\s*nights?/i);\n  const nights = nightsMatch ? parseInt(nightsMatch[1], 10) : 1;\n  return Math.round(price.qualifier === 'total' && nights > 1 ? n / nights : n);\n}\n\n// --- flights ---\nlet f = $('Apify: flights YYJ to YLW').first().json;\nif (Array.isArray(f)) f = f[0];\nconst flights = (f && (f.all_flights || f.best_flights)) || [];\nconst cheapest = flights.filter(function (x) { return x.price; })\n                        .sort(function (a, b) { return a.price - b.price; })[0] || {};\nconst flightLine = cheapest.price\n  ? ('C$' + cheapest.price + ' return (' + (cheapest.airlines || '?') +\n     ((cheapest.stops === 0 || cheapest.stops === '0') ? ', direct' : '') + ')')\n  : 'no fare returned';\n\n// --- rentals ---\nconst raw = flat($('Apify: Panorama rentals').all());\nconst scored = raw.map(function (v) {\n  // VERIFIED against a live tri_angle~airbnb-scraper run:\n  // coords live in `coordinates.latitude/.longitude`. `location` is a STRING,\n  // NOT an object -- reading location.lat gave undefined, which made\n  // walk_m null for every listing, which silently broke the boot-walk ranking.\n  const c = v.coordinates || {};\n  const loc = (v.location && typeof v.location === 'object') ? v.location : {};\n  const lat = c.latitude != null ? c.latitude : (loc.lat != null ? loc.lat : v.lat);\n  const lng = c.longitude != null ? c.longitude : (loc.lng != null ? loc.lng : v.lng);\n  const blurb = [v.title, v.name, v.description, v.metaDescription,\n                 v.locationSubtitle, (v.amenities || []).join(' ')]\n                .filter(Boolean).join(' ').toLowerCase();\n  return {\n    name: v.title || v.name || 'rental',\n    url: (v.url || '').split('?')[0],\n    nightly: nightly(v),\n    walk_m: metres(lat, lng),\n    lat: (typeof lat === 'number') ? lat : null,\n    lng: (typeof lng === 'number') ? lng : null,\n    hotTub: /hot tub|hot-tub|hottub|jacuzzi|soaking tub/.test(blurb),\n  };\n});\n\nconst keep = scored.slice().sort(function (a, b) {\n  const da = a.walk_m == null ? 9999999 : a.walk_m;\n  const db = b.walk_m == null ? 9999999 : b.walk_m;\n  if (da !== db) return da - db;                         // shortest boot-walk wins...\n  if (a.hotTub !== b.hotTub) return a.hotTub ? -1 : 1;   // ...hot tub breaks the tie\n  return 0;\n});\n\nreturn [{ json: {\n  flightLine: flightLine,\n  flightPrice: cheapest.price || null,\n  flightNumber: cheapest.flight_numbers || cheapest.flightNumber || null,\n  rental: keep[0] || {},\n  rentals_considered: scored.length,\n  walk_rule: 'ranked by boot-walk; hot tub first. No distance cut.',\n} }];\n"
+        "jsCode": "\n// Compare both flight options (Calgary vs Kelowna) and rank rentals by boot-walk.\nconst LIFT = { lat: 50.4608, lng: -116.2370 };   // Panorama base village\n\nfunction flat(items) {\n  let a = items.map(function (i) { return i.json; });\n  if (a.length === 1 && Array.isArray(a[0])) a = a[0];\n  if (a.length === 1 && a[0] && Array.isArray(a[0].data)) a = a[0].data;\n  return a;\n}\nfunction metres(lat, lng) {\n  if (typeof lat !== 'number' || typeof lng !== 'number') return null;\n  const R = 6371000;\n  const toRad = function (x) { return x * Math.PI / 180; };\n  const dLat = toRad(lat - LIFT.lat);\n  const dLng = toRad(lng - LIFT.lng);\n  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +\n            Math.cos(toRad(LIFT.lat)) * Math.cos(toRad(lat)) *\n            Math.sin(dLng / 2) * Math.sin(dLng / 2);\n  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));\n}\nfunction nightly(it) {\n  const desc = (((it.price || {}).breakDown || {}).basePrice || {}).description || '';\n  const money = [...desc.matchAll(/[$£€¥]\\s*([\\d,]+(?:\\.\\d+)?)/g)]\n    .map(function (m) { return parseFloat(m[1].replace(/,/g, '')); })\n    .filter(function (n) { return !isNaN(n); });\n  if (money.length) return Math.round(Math.max.apply(null, money));\n  const price = (it.price || {});\n  const alt = price.price || (it.pricing || {}).rate || null;\n  const n = parseFloat(String(alt).replace(/[^0-9.]/g, ''));\n  if (isNaN(n)) return null;\n  const nightsMatch = String(desc).match(/(\\d+)\\s*nights?/i);\n  const nights = nightsMatch ? parseInt(nightsMatch[1], 10) : 1;\n  return Math.round(price.qualifier === 'total' && nights > 1 ? n / nights : n);\n}\n\n// --- flights: extract both options ---\nlet yyc = $('Apify: flights YWG to YYC').first().json;\nif (Array.isArray(yyc)) yyc = yyc[0];\nconst flightsYYC = (yyc && (yyc.all_flights || yyc.best_flights)) || [];\nconst cheapestYYC = flightsYYC.filter(function (x) { return x.price; })\n                              .sort(function (a, b) { return a.price - b.price; })[0] || {};\n\nlet ylw = $('Apify: flights YWG to YLW').first().json;\nif (Array.isArray(ylw)) ylw = ylw[0];\nconst flightsYLW = (ylw && (ylw.all_flights || ylw.best_flights)) || [];\nconst cheapestYLW = flightsYLW.filter(function (x) { return x.price; })\n                              .sort(function (a, b) { return a.price - b.price; })[0] || {};\n\n// Pick the cheaper route\nconst cheaperIsCalgary = (cheapestYYC.price || 9999) <= (cheapestYLW.price || 9999);\nconst cheapest = cheaperIsCalgary ? cheapestYYC : cheapestYLW;\nconst arrivalAirport = cheaperIsCalgary ? 'YYC (Calgary)' : 'YLW (Kelowna)';\nconst flightLine = cheapest.price\n  ? ('C$' + cheapest.price + ' return (' + (cheapest.airlines || '?') +\n     ((cheapest.stops === 0 || cheapest.stops === '0') ? ', direct' : '') + ')')\n  : 'no fare returned';\n\n// Alt route option to display\nconst altPrice = cheaperIsCalgary ? cheapestYLW.price : cheapestYYC.price;\nconst altAirport = cheaperIsCalgary ? 'YLW (Kelowna)' : 'YYC (Calgary)';\nconst altLine = altPrice ? ('C$' + altPrice + ' return') : null;\n\n// --- rentals ---\nconst raw = flat($('Apify: Panorama rentals').all());\nconst scored = raw.map(function (v) {\n  const c = v.coordinates || {};\n  const loc = (v.location && typeof v.location === 'object') ? v.location : {};\n  const lat = c.latitude != null ? c.latitude : (loc.lat != null ? loc.lat : v.lat);\n  const lng = c.longitude != null ? c.longitude : (loc.lng != null ? loc.lng : v.lng);\n  const blurb = [v.title, v.name, v.description, v.metaDescription,\n                 v.locationSubtitle, (v.amenities || []).join(' ')]\n                .filter(Boolean).join(' ').toLowerCase();\n  return {\n    name: v.title || v.name || 'rental',\n    url: (v.url || '').split('?')[0],\n    nightly: nightly(v),\n    walk_m: metres(lat, lng),\n    lat: (typeof lat === 'number') ? lat : null,\n    lng: (typeof lng === 'number') ? lng : null,\n    hotTub: /hot tub|hot-tub|hottub|jacuzzi|soaking tub/.test(blurb),\n  };\n});\n\nconst keep = scored.slice().sort(function (a, b) {\n  const da = a.walk_m == null ? 9999999 : a.walk_m;\n  const db = b.walk_m == null ? 9999999 : b.walk_m;\n  if (da !== db) return da - db;\n  if (a.hotTub !== b.hotTub) return a.hotTub ? -1 : 1;\n  return 0;\n});\n\nreturn [{ json: {\n  flightLine: flightLine,\n  flightPrice: cheapest.price || null,\n  flightNumber: cheapest.flight_numbers || cheapest.flightNumber || null,\n  arrivalAirport: arrivalAirport,\n  altAirport: altAirport,\n  altLine: altLine,\n  rental: keep[0] || {},\n  rentals_considered: scored.length,\n  walk_rule: 'ranked by boot-walk; hot tub first. No distance cut.',\n} }];\n"
       },
-      "name": "Rank by boot-walk",
+      "name": "Rank flights & boot-walk",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -191,7 +212,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Build the row we hand to Supabase. This is what makes the system stateful: the trip\n// outlives this execution, so a workflow running days later can pick it up.\nconst s  = $('Evaluate JAPOW').first().json;\nconst p  = $('Rank by boot-walk').first().json;\nconst ch = p.rental || {};\nconst c  = s.conditions || {};\n\nreturn [{ json: {\n  status:         'proposed',\n  depart_date:    s.departDate,\n  return_date:    s.returnDate,\n  flight_number:  p.flightNumber || null,\n  flight_date:    s.departDate,\n  flight_line:    p.flightLine,\n  flight_price:   p.flightPrice,\n  rental_name:    ch.name || null,\n  rental_url:     ch.url || null,\n  rental_lat:     ch.lat != null ? ch.lat : null,\n  rental_lng:     ch.lng != null ? ch.lng : null,\n  rental_nightly: ch.nightly != null ? ch.nightly : null,\n  snow_summary:   [c.dump && c.dump.got, c.cold && c.cold.got, c.clear && c.clear.got]\n                    .filter(Boolean).join(' | '),\n} }];\n"
+        "jsCode": "\n// Build the row we hand to Supabase. This is what makes the system stateful: the trip\n// outlives this execution, so a workflow running days later can pick it up.\nconst s  = $('Evaluate JAPOW').first().json;\nconst p  = $('Rank flights & boot-walk').first().json;\nconst ch = p.rental || {};\nconst c  = s.conditions || {};\n\nreturn [{ json: {\n  status:         'proposed',\n  depart_date:    s.departDate,\n  return_date:    s.returnDate,\n  flight_number:  p.flightNumber || null,\n  flight_date:    s.departDate,\n  flight_line:    p.flightLine,\n  flight_price:   p.flightPrice,\n  arrival_airport: p.arrivalAirport || null,\n  alt_arrival_airport: p.altAirport || null,\n  alt_flight_line: p.altLine || null,\n  rental_name:    ch.name || null,\n  rental_url:     ch.url || null,\n  rental_lat:     ch.lat != null ? ch.lat : null,\n  rental_lng:     ch.lng != null ? ch.lng : null,\n  rental_nightly: ch.nightly != null ? ch.nightly : null,\n  snow_summary:   [c.dump && c.dump.got, c.cold && c.cold.got, c.clear && c.clear.got]\n                    .filter(Boolean).join(' | '),\n} }];\n"
       },
       "name": "Build the trip row",
       "type": "n8n-nodes-base.code",
@@ -218,7 +239,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst s = $('Evaluate JAPOW').first().json;\nconst p = $('Rank by boot-walk').first().json;\nconst c = s.conditions;\nconst ch = p.rental || {};\nconst walk = ch.walk_m != null ? (ch.walk_m + 'm walk') : 'walk unknown';\nconst hotTub = ch.hotTub ? ' + HOT TUB' : '';\n\n// Short, dry, and readable on a phone. Every line earns its place.\nconst MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];\nconst short = function (iso) {\n  if (!iso) return '?';\n  const d = new Date(iso);\n  return d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()];\n};\nconst dates = short(s.departDate) + ' - ' + short(s.returnDate);\n\n// Pull the bare numbers back out of the condition strings so the message stays tight.\nconst snowCm = (String(c.dump.got).match(/([\\d.]+)cm/) || [])[1];\nconst coldDay = (function () {\n  const days = (s.daily || []).filter(function (x) { return x.tmax <= -10; });\n  return days.length ? Math.min.apply(null, days.map(function (x) { return x.tmax; })) : null;\n})();\n\nconst lines = [\n  '\\u{1F3D4}️ <b>JAPOW EVENT</b>',\n  'Panorama is about to get buried.',\n  '',\n  '❄️ <b>' + (snowCm ? snowCm + 'cm' : c.dump.got) + '</b> overnight',\n  '\\u{1F976} <b>' + (coldDay != null ? coldDay + '°C' : 'cold') + '</b> for three days straight',\n  '☀️ Then it clears. Of course it does.',\n  '',\n  '\\u{1F4C5} <b>' + dates + '</b> · ' + s.trip_nights + ' nights',\n  '✈️ Victoria → Kelowna · <b>' + p.flightLine + '</b>',\n  '\\u{1F3E0} ' + (ch.name || '?') + hotTub,\n  '   <b>C$' + (ch.nightly != null ? ch.nightly : '?') + '/night</b> · ' + walk,\n  '   ' + (ch.url || ''),\n  '',\n  '\\u{1F97E} Closest of ' + p.rentals_considered + ' to the lifts' +\n    (ch.hotTub ? ', and it has a hot tub.' : '.'),\n  '',\n  '⏳ <b>Four hours.</b> Then it books without you.',\n];\nreturn [{ json: { text: lines.join('\\n') } }];\n"
+        "jsCode": "\nconst s = $('Evaluate JAPOW').first().json;\nconst p = $('Rank flights & boot-walk').first().json;\nconst c = s.conditions;\nconst ch = p.rental || {};\nconst walk = ch.walk_m != null ? (ch.walk_m + 'm walk') : 'walk unknown';\nconst hotTub = ch.hotTub ? ' + HOT TUB' : '';\n\n// Short, dry, and readable on a phone. Every line earns its place.\nconst MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];\nconst short = function (iso) {\n  if (!iso) return '?';\n  const d = new Date(iso);\n  return d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()];\n};\nconst dates = short(s.departDate) + ' - ' + short(s.returnDate);\n\n// Pull the bare numbers back out of the condition strings so the message stays tight.\nconst snowCm = (String(c.dump.got).match(/([\\d.]+)cm/) || [])[1];\nconst coldDay = (function () {\n  const days = (s.daily || []).filter(function (x) { return x.tmax <= -10; });\n  return days.length ? Math.min.apply(null, days.map(function (x) { return x.tmax; })) : null;\n})();\n\nconst lines = [\n  '\\u{1F3D4}️ <b>JAPOW EVENT</b>',\n  'Panorama is about to get buried.',\n  '',\n  '❄️ <b>' + (snowCm ? snowCm + 'cm' : c.dump.got) + '</b> overnight',\n  '\\u{1F976} <b>' + (coldDay != null ? coldDay + '°C' : 'cold') + '</b> for three days straight',\n  '☀️ Then it clears. Of course it does.',\n  '',\n  '\\u{1F4C5} <b>' + dates + '</b> · ' + s.trip_nights + ' nights',\n  '✈️ Winnipeg → ' + p.arrivalAirport + ' · <b>' + p.flightLine + '</b>',\n];\n\n// Add alternate route if available\nif (p.altLine) {\n  lines.push('   (or → ' + p.altAirport + ' · <b>' + p.altLine + '</b>)');\n}\n\nlines.push('\\u{1F3E0} ' + (ch.name || '?') + hotTub);\nlines.push('   <b>C$' + (ch.nightly != null ? ch.nightly : '?') + '/night</b> · ' + walk);\nlines.push('   ' + (ch.url || ''));\nlines.push('');\nlines.push('\\u{1F97E} Closest of ' + p.rentals_considered + ' to the lifts' +\n  (ch.hotTub ? ', and it has a hot tub.' : '.'));\nlines.push('');\nlines.push('⏳ <b>Four hours.</b> Then it books without you.');\n\nreturn [{ json: { text: lines.join('\\n') } }];\n"
       },
       "name": "Build the proposal",
       "type": "n8n-nodes-base.code",
@@ -342,14 +363,30 @@
       "main": [
         [
           {
-            "node": "Apify: flights YYJ to YLW",
+            "node": "Apify: flights YWG to YYC",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Apify: flights YWG to YLW",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Apify: flights YYJ to YLW": {
+    "Apify: flights YWG to YYC": {
+      "main": [
+        [
+          {
+            "node": "Apify: Panorama rentals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify: flights YWG to YLW": {
       "main": [
         [
           {
@@ -364,14 +401,14 @@
       "main": [
         [
           {
-            "node": "Rank by boot-walk",
+            "node": "Rank flights & boot-walk",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Rank by boot-walk": {
+    "Rank flights & boot-walk": {
       "main": [
         [
           {
